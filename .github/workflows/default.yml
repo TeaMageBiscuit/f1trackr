@@ -22,7 +22,7 @@ env:
   OWNER: ${{ github.repository_owner }}
 
   APPHOST_PROJECT: ./src/F1Trackr.AppHost/F1Trackr.AppHost.csproj
-  SERVER_PROJECT: ./src/F1Trackr.Backend/F1Trackr.Backend.csproj
+  SERVER_PROJECT: ./src/F1Trackr.Server/F1Trackr.Server.csproj
   MIGRATIONS_PROJECT: ./src/F1Trackr.MigrationService/F1Trackr.MigrationService.csproj
 
 jobs:
@@ -91,20 +91,18 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           set -euo pipefail
+          OWNER_LC="$(echo "${{ env.OWNER }}" | tr '[:upper:]' '[:lower:]')"
 
-          # Publishes ghcr.io/<owner>/f1trackr-migrations:<tag>
           dotnet publish "${{ env.MIGRATIONS_PROJECT }}" -c "${{ env.CONFIGURATION }}" \
             /t:PublishContainer \
             /p:ContainerRegistry="${{ env.REGISTRY }}" \
-            /p:ContainerRepository="${{ env.OWNER }}" \
-            /p:ContainerImageName="f1trackr-migrations" \
+            /p:ContainerRepository="${OWNER_LC}/f1trackr-migrations" \
             /p:ContainerImageTag="${VERSION}"
 
           dotnet publish "${{ env.MIGRATIONS_PROJECT }}" -c "${{ env.CONFIGURATION }}" \
             /t:PublishContainer \
             /p:ContainerRegistry="${{ env.REGISTRY }}" \
-            /p:ContainerRepository="${{ env.OWNER }}" \
-            /p:ContainerImageName="f1trackr-migrations" \
+            /p:ContainerRepository="${OWNER_LC}/f1trackr-migrations" \
             /p:ContainerImageTag="latest"
 
       - name: Build & push server image (:version and :latest)
@@ -113,21 +111,18 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           set -euo pipefail
+          OWNER_LC="$(echo "${{ env.OWNER }}" | tr '[:upper:]' '[:lower:]')"
 
-          # Note: your Backend project runs an npm build during publish;
-          # Ubuntu runner has Node preinstalled, so this typically works as-is.
           dotnet publish "${{ env.SERVER_PROJECT }}" -c "${{ env.CONFIGURATION }}" \
             /t:PublishContainer \
             /p:ContainerRegistry="${{ env.REGISTRY }}" \
-            /p:ContainerRepository="${{ env.OWNER }}" \
-            /p:ContainerImageName="f1trackr-server" \
+            /p:ContainerRepository="${OWNER_LC}/f1trackr-server" \
             /p:ContainerImageTag="${VERSION}"
 
           dotnet publish "${{ env.SERVER_PROJECT }}" -c "${{ env.CONFIGURATION }}" \
             /t:PublishContainer \
             /p:ContainerRegistry="${{ env.REGISTRY }}" \
-            /p:ContainerRepository="${{ env.OWNER }}" \
-            /p:ContainerImageName="f1trackr-server" \
+            /p:ContainerRepository="${OWNER_LC}/f1trackr-server" \
             /p:ContainerImageTag="latest"
 
       - name: Install Aspire CLI
@@ -158,10 +153,11 @@ jobs:
             exit 1
           fi
 
-          MIGRATIONS_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/f1trackr-migrations:${VERSION}"
-          SERVER_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/f1trackr-server:${VERSION}"
+          OWNER_LC="$(echo "${{ env.OWNER }}" | tr '[:upper:]' '[:lower:]')"
 
-          # Replace existing lines if present; otherwise append.
+          MIGRATIONS_IMAGE="${{ env.REGISTRY }}/${OWNER_LC}/f1trackr-migrations:${VERSION}"
+          SERVER_IMAGE="${{ env.REGISTRY }}/${OWNER_LC}/f1trackr-server:${VERSION}"
+
           if grep -qE '^MIGRATIONS_IMAGE=' "$ENV_FILE"; then
             sed -i "s|^MIGRATIONS_IMAGE=.*$|MIGRATIONS_IMAGE=${MIGRATIONS_IMAGE}|" "$ENV_FILE"
           else
