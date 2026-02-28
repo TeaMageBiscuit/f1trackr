@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/config/">
+    <File Path="src/Directory.Build.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/F1Trackr.AppHost/F1Trackr.AppHost.csproj" />
+    <Project Path="src/F1Trackr.Core/F1Trackr.Core.csproj" />
+    <Project Path="src/F1Trackr.MigrationService/F1Trackr.MigrationService.csproj" />
+    <Project Path="src/F1Trackr.Server/F1Trackr.Server.csproj" />
+    <Project Path="src/F1Trackr.ServiceDefaults/F1Trackr.ServiceDefaults.csproj" />
+  </Folder>
+</Solution>

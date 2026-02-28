@@ -1,0 +1,77 @@
+@import "tailwindcss";
+@import "tailwindcss-primeui";
+@import 'primeicons/primeicons.css';
+
+@custom-variant dark (&:where(.f1-dark, .f1-dark *));
+
+:root {
+    --body-background-color: var(--color-surface-100);
+    --surface-card: var(--color-surface-0);
+    --card-border-color: var(--color-surface-300);
+}
+
+.f1-dark {
+    --body-background-color: var(--color-surface-950);
+    --surface-card: var(--color-surface-900);
+    --card-border-color: var(--color-surface-700);
+}
+
+body {
+    background-color: var(--body-background-color) !important;
+}
+
+.card {
+    background: var(--surface-card);
+    padding: 0.5rem;
+    border: 1px solid var(--card-border-color);
+    border-radius: 6px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+}
+
+@layer primevue {
+    /* PrimeVue DataTable header: keep primary background across default/hover/sorted states */
+    .p-datatable .p-datatable-thead > tr > th {
+        background: var(--p-primary-600);
+        color: white;
+        border-color: color-mix(in srgb, var(--p-primary-600), black 15%);
+    }
+
+    /* Hover state for sortable headers */
+    .p-datatable .p-datatable-thead > tr > th.p-datatable-sortable-column:hover {
+        background: var(--p-primary-700);
+        color: white;
+    }
+
+    .p-datatable .p-datatable-thead > tr > th.p-datatable-sortable-column:hover .p-datatable-sort-icon {
+        background: var(--p-primary-700);
+        color: white;
+    }
+
+    /* Sorted column header (PrimeVue commonly uses .p-highlight on the active sorted header) */
+    .p-datatable .p-datatable-thead > tr > th.p-highlight {
+        background: var(--p-primary-800);
+        color: white;
+    }
+
+    /* Focus ring / keyboard focus inside header */
+    .p-datatable .p-datatable-thead > tr > th:focus-visible,
+    .p-datatable .p-datatable-thead > tr > th.p-datatable-sortable-column:focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--p-primary-200), white 20%);
+        outline-offset: -2px;
+    }
+
+    /* Sort icon + header text colors */
+    .p-datatable .p-datatable-thead > tr > th .p-column-title,
+    .p-datatable .p-datatable-thead > tr > th .p-datatable-sort-icon {
+        color: white;
+    }
+
+    /* Slight emphasis for the active sort icon */
+    .p-datatable .p-datatable-thead > tr > th.p-highlight .p-datatable-sort-icon {
+        color: white;
+        opacity: 0.95;
+    }
+}

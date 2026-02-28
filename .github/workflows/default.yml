@@ -1,0 +1,184 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:
+      - "version/*"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  CONFIGURATION: Release
+
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+  APPHOST_PROJECT: ./src/F1Trackr.AppHost/F1Trackr.AppHost.csproj
+  SERVER_PROJECT: ./src/F1Trackr.Backend/F1Trackr.Backend.csproj
+  MIGRATIONS_PROJECT: ./src/F1Trackr.MigrationService/F1Trackr.MigrationService.csproj
+
+jobs:
+  build_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c ${{ env.CONFIGURATION }}
+
+      - name: Test
+        run: dotnet test --no-build -c ${{ env.CONFIGURATION }} --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/*.trx"
+
+  publish:
+    needs: build_test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/version/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute version from tag (version/*)
+        id: ver
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#version/}"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$TAG" ]; then
+            echo "Tag must be in the form version/*"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push migrations image (:version and :latest)
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # Publishes ghcr.io/<owner>/f1trackr-migrations:<tag>
+          dotnet publish "${{ env.MIGRATIONS_PROJECT }}" -c "${{ env.CONFIGURATION }}" \
+            /t:PublishContainer \
+            /p:ContainerRegistry="${{ env.REGISTRY }}" \
+            /p:ContainerRepository="${{ env.OWNER }}" \
+            /p:ContainerImageName="f1trackr-migrations" \
+            /p:ContainerImageTag="${VERSION}"
+
+          dotnet publish "${{ env.MIGRATIONS_PROJECT }}" -c "${{ env.CONFIGURATION }}" \
+            /t:PublishContainer \
+            /p:ContainerRegistry="${{ env.REGISTRY }}" \
+            /p:ContainerRepository="${{ env.OWNER }}" \
+            /p:ContainerImageName="f1trackr-migrations" \
+            /p:ContainerImageTag="latest"
+
+      - name: Build & push server image (:version and :latest)
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # Note: your Backend project runs an npm build during publish;
+          # Ubuntu runner has Node preinstalled, so this typically works as-is.
+          dotnet publish "${{ env.SERVER_PROJECT }}" -c "${{ env.CONFIGURATION }}" \
+            /t:PublishContainer \
+            /p:ContainerRegistry="${{ env.REGISTRY }}" \
+            /p:ContainerRepository="${{ env.OWNER }}" \
+            /p:ContainerImageName="f1trackr-server" \
+            /p:ContainerImageTag="${VERSION}"
+
+          dotnet publish "${{ env.SERVER_PROJECT }}" -c "${{ env.CONFIGURATION }}" \
+            /t:PublishContainer \
+            /p:ContainerRegistry="${{ env.REGISTRY }}" \
+            /p:ContainerRepository="${{ env.OWNER }}" \
+            /p:ContainerImageName="f1trackr-server" \
+            /p:ContainerImageTag="latest"
+
+      - name: Install Aspire CLI
+        run: |
+          dotnet tool install --global aspire.cli --prerelease
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+          aspire --version
+
+      - name: Generate docker-compose.yml + .env via Aspire
+        run: |
+          mkdir -p artifacts/aspire-publish
+
+          aspire do publish \
+            --project "${{ env.APPHOST_PROJECT }}" \
+            --output-path ./artifacts/aspire-publish
+
+      - name: Set MIGRATIONS_IMAGE and SERVER_IMAGE to explicit :version in generated .env
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          ENV_FILE="artifacts/aspire-publish/.env"
+          if [ ! -f "$ENV_FILE" ]; then
+            echo "Expected .env at $ENV_FILE not found"
+            ls -la artifacts/aspire-publish || true
+            exit 1
+          fi
+
+          MIGRATIONS_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/f1trackr-migrations:${VERSION}"
+          SERVER_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/f1trackr-server:${VERSION}"
+
+          # Replace existing lines if present; otherwise append.
+          if grep -qE '^MIGRATIONS_IMAGE=' "$ENV_FILE"; then
+            sed -i "s|^MIGRATIONS_IMAGE=.*$|MIGRATIONS_IMAGE=${MIGRATIONS_IMAGE}|" "$ENV_FILE"
+          else
+            echo "MIGRATIONS_IMAGE=${MIGRATIONS_IMAGE}" >> "$ENV_FILE"
+          fi
+
+          if grep -qE '^SERVER_IMAGE=' "$ENV_FILE"; then
+            sed -i "s|^SERVER_IMAGE=.*$|SERVER_IMAGE=${SERVER_IMAGE}|" "$ENV_FILE"
+          else
+            echo "SERVER_IMAGE=${SERVER_IMAGE}" >> "$ENV_FILE"
+          fi
+
+          echo "Resulting image variables:"
+          grep -E '^(MIGRATIONS_IMAGE|SERVER_IMAGE)=' "$ENV_FILE"
+
+      - name: Upload publish output (compose + .env)
+        uses: actions/upload-artifact@v4
+        with:
+          name: aspire-publish
+          path: artifacts/aspire-publish

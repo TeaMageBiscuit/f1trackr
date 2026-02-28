@@ -1,0 +1,18 @@
+﻿using System.Text.Json.Serialization;
+
+namespace F1Trackr.Core.Infrastructure.Jolpica.Models;
+
+public class Location
+{
+    [JsonPropertyName("lat")]
+    public string? Lat { get; set; }
+    
+    [JsonPropertyName("long")]
+    public string? Long { get; set; }
+    
+    [JsonPropertyName("locality")]
+    public string? Locality { get; set; }
+    
+    [JsonPropertyName("country")]
+    public string? Country { get; set; }
+}
