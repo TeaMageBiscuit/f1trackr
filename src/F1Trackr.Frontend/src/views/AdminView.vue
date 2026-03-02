@@ -299,7 +299,7 @@ onMounted(refresh)
     @import-constructors="importConstructors"
     @import-drivers="importDrivers"
     @import-races="importRaces"
-    @import-results="importResults"
+    @import-race-results="importResults"
     @recalculate-scores="recalculateScores"
     @create-user="showCreateUserDialog"
     @update-user="showUpdateUserDialog"
