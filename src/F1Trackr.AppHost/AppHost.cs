@@ -15,7 +15,12 @@ public static class Program
         {
         }
 
-        var database = AddDatabase(builder);
+        var database = builder
+            .AddPostgres("postgres")
+            .WithLifetime(ContainerLifetime.Persistent)
+            .WithDataVolume()
+            .WithPgAdmin(admin => admin.WithHostPort(5112))
+            .AddDatabase("database", "F1Trackr");
 
         var migrations = builder.AddProject<Projects.F1Trackr_MigrationService>("migrations")
             .WithReference(database)
@@ -79,20 +84,5 @@ public static class Program
         var host = builder.Build();
 
         host.Run();
-    }
-
-    private static IResourceBuilder<IResourceWithConnectionString> AddDatabase(IDistributedApplicationBuilder builder)
-    {
-        if (builder.Environment.IsDevelopment())
-        {
-            return builder
-                .AddPostgres("postgres")
-                .WithLifetime(ContainerLifetime.Persistent)
-                .WithDataVolume()
-                .WithPgAdmin(admin => admin.WithHostPort(5112))
-                .AddDatabase("database", "F1Trackr");
-        }
-
-        return builder.AddConnectionString("database");
     }
 }
