@@ -8,7 +8,7 @@ internal sealed class AdminImportRaceResultsEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapPut(
-            "/api/admin/races-results/{season}/{round:int}",
+            "/api/admin/results/{season}/{round:int}",
             async (
                 [FromRoute] string season,
                 [FromRoute] int round,
