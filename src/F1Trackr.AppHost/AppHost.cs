@@ -49,7 +49,7 @@ public static class Program
                 .ConfigureComposeFile(compose => compose
                     .AddNetwork(new Network
                     {
-                        Name = "dokploy",
+                        Name = "dokploy-network",
                         External = true,
                     }))
                 .WithContainerRegistry(registry);

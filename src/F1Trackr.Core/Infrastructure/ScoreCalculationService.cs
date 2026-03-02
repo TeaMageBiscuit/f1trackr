@@ -89,8 +89,8 @@ public sealed class ScoreCalculationService
         var snapshot = new GroupMemberScoreSnapshot(
             raceId,
             Scoring.BaseScore,
-            driverPenalty,
             constructorPenalty,
+            driverPenalty,
             bonusThisRound,
             bonusTotal,
             total,
@@ -103,6 +103,11 @@ public sealed class ScoreCalculationService
         }
 
         member.ScoreSnapshots.Add(snapshot);
+
+        member.CurrentScore = member.ScoreSnapshots
+            .OrderByDescending(s => s.RaceId.Round)
+            .First()
+            .TotalPoints;
     }
 
     private static int CalculateStandingsPenalty<TKey>(
