@@ -32,7 +32,8 @@ public sealed class ViewGroup
                     g.Name,
                     g.Season,
                     g.Members
-                        .OrderBy(m => m.User.Name)
+                        .OrderByDescending(m => m.CurrentScore)
+                        .ThenBy(m => m.User.Name)
                         .Select(m => new GroupMemberSummary(
                             m.GroupId,
                             m.UserId,

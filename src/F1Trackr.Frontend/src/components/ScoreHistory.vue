@@ -2,21 +2,30 @@
 import type { GroupMember } from '@/models'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
+import { computed } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   loading: boolean
   member?: GroupMember
 }>()
+
+const scoreSnapshots = computed(() =>
+  (props.member?.scoreSnapshots ?? []).sort((a, b) => b.raceId.round - a.raceId.round),
+)
 </script>
 
 <template>
   <DataTable
-    :value="member?.scoreSnapshots ?? []"
+    :value="scoreSnapshots"
     :loading="loading"
     :rows="10"
     striped-rows
     show-gridlines
     size="small"
+    scrollable
+    :pt="{
+      tableContainer: 'max-h-56',
+    }"
   >
     <template #empty>
       <div class="p-2 text-surface-600 dark:text-surface-300">
